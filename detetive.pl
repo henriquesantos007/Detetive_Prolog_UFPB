@@ -1,7 +1,3 @@
-% lembrar de escrever "swipl" pra iniciar o interpretador do prolog
-% e "[detetiveV2]." pra entrar no arquivo
-% daí é só chamar os predicados normalmente.
-
 :- use_module(library(random)).
 :- dynamic culpado/1.
 :- dynamic arma_usada/1.
@@ -13,7 +9,7 @@
 
 
 % ---------------------------------------
-% Cartas
+% Cartas divididas em categorias (personagens, armas e cÃ´modos)
 personagem(mordomo).
 personagem(jardineiro).
 personagem(motorista).
@@ -51,11 +47,14 @@ inicializa_jogadores :-
 
 
 % ---------------------------------------
-% Sorteio da cena do crime
+% Predicados para fazer o sorteio das cartas do crime
 sorteia_suspeito(S) :- findall(X, personagem(X), L), random_member(S, L).
 sorteia_arma(A) :-     findall(X, arma(X), L), random_member(A, L).
 sorteia_comodo(C) :-   findall(X, comodo(X), L), random_member(C, L).
 
+
+% ---------------------------------------
+% Sorteia a cena do crime
 escolher_cena_de_crime(S, A, C) :-
     retractall(culpado(_)),
     retractall(arma_usada(_)),
@@ -88,7 +87,7 @@ embaralha_cartas(PersonagensBaralhados, ArmasBaralhadas, ComodosBaralhados, S, A
 
 
 % ---------------------------------------
-% Distribuição ordenada: 1 de cada tipo por jogador
+% DistribuiÃ§Ã£o ordenada: 1 de cada tipo por jogador
 distribuir_cartas([], [], [], [], []).
 distribuir_cartas([J|Js], [P|Ps], [A|As], [C|Cs], [jogador(J, P, A, C)|Distribuicao]) :-
     distribuir_cartas(Js, Ps, As, Cs, Distribuicao).
@@ -146,7 +145,7 @@ mostrar_dono_cartas([Carta|Resto]) :-
     J \= player,
     cartas_jogador(J, Cartas),
     member(Carta, Cartas),
-    format("A carta ~w está com o jogador: ~w~n", [Carta, J]),
+    format("A carta ~w estÃ¡ com o jogador: ~w~n", [Carta, J]),
     mostrar_dono_cartas(Resto).
 
 
@@ -155,16 +154,16 @@ mostrar_dono_cartas([Carta|Resto]) :-
 % Mostra o palpite
 mostrar_lista_palpites([]).
 mostrar_lista_palpites([(S, A, C)|T]) :-
-    format("Suspeito: ~w | Arma: ~w | Cômodo: ~w~n", [S, A, C]),
+    format("Suspeito: ~w | Arma: ~w | CÃ´modo: ~w~n", [S, A, C]),
     mostrar_lista_palpites(T).
 
 
 
 % ---------------------------------------
-% Vai exibir as crtas do usuário quando iniciar o jogo
+% Vai exibir as crtas do usuÃ¡rio quando iniciar o jogo
 mostrar_cartas_player :-
     cartas_jogador(player, Cartas),
-    format("~nSuas cartas são:~n"),
+    format("~nSuas cartas sÃ£o:~n"),
     mostrar_lista_cartas(Cartas).
 
 
@@ -182,15 +181,15 @@ mostrar_cartas_possiveis :-
     subtract(TodasArmas, MinhasCartas, ArmasPossiveis),
     subtract(TodosComodos, MinhasCartas, ComodosPossiveis),
 
-    writeln("\nCartas possíveis para palpite:"),
-    format("Personagens disponíveis:~n   ~w~n", [PersonagensPossiveis]),
-    format("Armas disponíveis:~n   ~w~n", [ArmasPossiveis]),
-    format("Cômodos disponíveis:~n   ~w~n~n", [ComodosPossiveis]).
+    writeln("\nCartas possÃ­veis para palpite:"),
+    format("Personagens disponÃ­veis:~n   ~w~n", [PersonagensPossiveis]),
+    format("Armas disponÃ­veis:~n   ~w~n", [ArmasPossiveis]),
+    format("CÃ´modos disponÃ­veis:~n   ~w~n~n", [ComodosPossiveis]).
 
 
 
 % ---------------------------------------
-% Exibe no histórico de partidas as cartas que estão com outros
+% Exibe no histÃ³rico de partidas as cartas que estÃ£o com outros
 % jogadores
 mostrar_lista_cartas([]).
 mostrar_lista_cartas([C|R]) :-
@@ -198,6 +197,13 @@ mostrar_lista_cartas([C|R]) :-
     mostrar_lista_cartas(R).
 
 
+% ----------------------------------------------------------------------------
+% Printa uma tabela com os palpites ja feitos
+mostrar_historico_palpites :-
+    historico_palpites(Hist),
+    format("~n===== HistÃ³rico de Palpites =====~n"),
+    mostrar_lista_palpites(Hist),
+    format("=================================~n").
 
 
 
@@ -208,22 +214,24 @@ iniciar_jogo :-
     inicializa_jogadores,
     embaralha_cartas(_, _, _, _, _, _, Distribuicao),
     salvar_distribuicao(Distribuicao),
-    writeln('Jogo iniciado! As cartas foram distribuídas.'),
+    writeln('Jogo iniciado! As cartas foram distribuÃ­das.'),
     mostrar_cartas_possiveis,
     mostrar_cartas_player,
     writeln("\nDigite 'palpite(Suspeito, Arma, Comodo)' paara dar o seu palpite.").
 
+
+% ----------------------------------------------------------------------------
 % Recolhe e processa o palpite do usuÃ¡rio
 palpite(Suspeito, Arma, Comodo) :-
     format("SEU PALPITE:~n"),
     format("suspeito: ~w~n", [Suspeito]),
     format("arma: ~w~n", [Arma]),
-    format("cômodo: ~w~n~n", [Comodo]),
+    format("cÃ´modo: ~w~n~n", [Comodo]),
 
     (culpado(Suspeito), arma_usada(Arma), local_crime(Comodo) ->
-        writeln("Parabéns, você desvendou o crime!");
+        writeln("ParabÃ©ns, vocÃª desvendou o crime!");
         (
-            writeln("Algum palpite está incorreto. Vamos investigar..."),
+            writeln("Algum palpite estÃ¡ incorreto. Vamos investigar..."),
             verifica_cartas_com_outros(Suspeito, Arma, Comodo, Encontradas),
             registrar_cartas_encontradas(Encontradas, Suspeito, Arma, Comodo),
             mostrar_historico_palpites,
@@ -232,13 +240,3 @@ palpite(Suspeito, Arma, Comodo) :-
 
         )
     ).
-
-% Printa uma tabela com os palpites ja feitos
-mostrar_historico_palpites :-
-    historico_palpites(Hist),
-    format("~n===== Histórico de Palpites =====~n"),
-    mostrar_lista_palpites(Hist),
-    format("=================================~n").
-
-
-
