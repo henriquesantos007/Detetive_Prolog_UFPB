@@ -16,7 +16,9 @@
 cartas_confirmadas([]).
 historico_palpites([]).
 
-% --- Cartas ---
+
+
+% --- Cartas Principais ---
 personagem(mordomo).  personagem(jardineiro).  personagem(motorista).
 personagem(cozinheira).  personagem(empregada).  personagem(esposa).
 
@@ -26,64 +28,97 @@ arma(chave_inglesa).  arma(abajour).  arma(corda).
 comodo(cozinha).  comodo(sala).  comodo(biblioteca).
 comodo(jardim).  comodo(varanda).  comodo(escritorio).
 
+
+
 % --- Inicializa jogadores ---
 inicializa_jogadores :-
     retractall(jogador(_)),
     retractall(cartas_jogador(_, _)),
     forall(member(J, [player, jogador1, jogador2, jogador3, jogador4]), assertz(jogador(J))).
 
+
+
 % --- Sorteio da cena do crime ---
 sortear_cena_do_crime :-
+    % Primeiro, zera o banco de dados da cena do crime, do culpado, a arma usada e o local do crime
     retractall(cena_crime(_, _, _)),
     retractall(culpado(_)), retractall(arma_usada(_)), retractall(local_crime(_)),
+
+    % Cria uma lista para cada categoria de carta, e seleciona um elemento aleatório de cada
     findall(P, personagem(P), Ps), random_member(S, Ps),
     findall(A, arma(A), As), random_member(W, As),
     findall(C, comodo(C), Cs), random_member(L, Cs),
 
+    % Adiciona o culpado, a arma usada no crime e o locl do crime na base de dados
     assertz(culpado(S)),assertz(arma_usada(W)),assertz(local_crime(L)),
 
-
+    % Adiciona a cena do crime na base de dados
     assertz(cena_crime(S, W, L)).
 
 
 
 % --- Embaralhar e distribuir cartas ---
 distribuir_cartas :-
-    findall(P, personagem(P), Ps), findall(A, arma(A), As), findall(C, comodo(C), Cs),
-    cena_crime(S, W, L),
-    delete(Ps, S, Pss), delete(As, W, Ass), delete(Cs, L, Css),
+    findall(P, personagem(P), Ps), findall(A, arma(A), As), findall(C, comodo(C), Cs), % Cria listas para cadaa tipo de carta.
+
+    cena_crime(S, W, L), % Resgata a cena do crime do banco de dados
+
+    delete(Ps, S, Pss), delete(As, W, Ass), delete(Cs, L, Css), % Elimina das listas, os elementos da cena do crime
+
+    % Embaralha as listas sem as cartas do crime
     random_permutation(Pss,SuspeitosEmbaralhados),
     random_permutation(Ass,ArmasEmbaralhadas),
     random_permutation(Css,ComodosEmbaralhados),
 
     %append([Pss, Ass, Css], Todas), random_permutation(Todas, Embaralhadas),
+
+    % Para cafa jogador, distribui as cartas embaralhadas igualmente
     findall(J, jogador(J), Jogadores), distribuir_cartas_aux(Jogadores, SuspeitosEmbaralhados, ArmasEmbaralhadas, ComodosEmbaralhados).
 
 
+% Distribui igualmente as caartas para cada jogador
 distribuir_cartas_aux([], _,_,_).
 distribuir_cartas_aux([J|Js], Sus, Arm, Com) :-
     %length(Mao, 3), append(Mao, Resto, Cartas),
+
+    % Seleciona elementos aleaatórios das lists correspondentes
     random_member(S, Sus),
     random_member(A, Arm),
     random_member(C, Com),
-    Mao = [S, A, C],
+
+    Mao = [S, A, C], % Define  mão do jogador com essas cartaas sorteadas
+
+    % Deleta das listas as cartas da mao
     delete(Sus, S, Su),
     delete(Arm, A, Ar),
     delete(Com, C, Co),
 
-    assertz(cartas_jogador(J, Mao)),
-    distribuir_cartas_aux(Js, Su, Ar, Co).
+    assertz(cartas_jogador(J, Mao)), % Associa a mão sorteada para o jogador da vez
+    distribuir_cartas_aux(Js, Su, Ar, Co). % Recursão
 
-% --- Palpite ---
+
+
+% --- Palpite do usuário ---
 palpite(S, A, C) :-
     format("\n===== PALPITE FEITO =====~nSuspeito: ~w~nArma: ~w~nCômodo: ~w~n~n", [S, A, C]),
-    cena_crime(SC, AC, LC),
+
+    cena_crime(SC, AC, LC), % Resgata a cena do crime
+
+    % Verifica o paalpite com a cena do crime resgatada
     (S == SC, A == AC, C == LC ->
-        writeln("Parabéns, você desvendou o crime!"), processa_opcao(0)
+        writeln("Parabéns, você desvendou o crime!"), processa_opcao(0) % Parabeniza o jogador, e encerra o jogo
+
     ;
+        % Se o palpite estiver incorreto, exibie na tela a carta do palpite que está com algum jogador
+        writeln("Algum palpite está incorreto. Vamos investigar..."),
+
         verificar_cartas([S, A, C], Confirmadas),
         registrar_cartas_confirmadas(Confirmadas),
         registrar_palpite(S, A, C),
+
+        verifica_cartas_com_outros(S, A, C, Encontradas),
+        registrar_cartas_encontradas(Encontradas, S, A, C), % Registra as cartas encontradas no histórico
+
         mostrar_historico_palpites).
 
 % --- Verifica quem tem cartas do palpite ---
@@ -197,13 +232,16 @@ processa_opcao(1) :-
     format("~nFaça o seu palpite ~n"),
 
     format("Quem você acha que foi o culpado? ~n"),
-    ler_suspeito(Sus),
+    %ler_suspeito(Sus),
+    read(Sus),
 
     format("Qual arma ele utilizou no assassinato? ~n"),
-    ler_arma(Arma),
+    %ler_arma(Arma),
+    read(Arma),
 
     format("Em que cômodo ocorreu o crime? ~n"),
-    ler_comodo(Comodo),
+    %ler_comodo(Comodo),
+    read(Comodo),
 
     palpite(Sus, Arma, Comodo),
     menu_principal.   % Depois de palpitar, volta ao menu
@@ -223,7 +261,9 @@ processa_opcao(5) :-
 
 processa_opcao(0) :-
     writeln("\nJogo encerrado. Até a próxima!"),
-    mostrar_historico_palpites.
+    mostrar_historico_palpites,
+    !.
+    %halt.
 processa_opcao(_) :-
     writeln("\nOpção inválida, tente novamente."),
     menu_principal.  % Volta pro menu se digitar errado
@@ -232,11 +272,11 @@ processa_opcao(_) :-
 % --- Exibe o hist\xF3rico ---
 mostrar_historico_palpites :-
     historico_palpites(Hist),
-    format("\n===== Hist\xF3rico de Palpites =====~n"),
+    format("\n=====================  Histórico de Palpites =====================~n"),
     forall(member((S-ES, A-EA, C-EC), Hist), (
         format("Suspeito: ~w (~w) | Arma: ~w (~w) | C\xF4modo: ~w (~w)~n", [S, ES, A, EA, C, EC])
     )),
-    format("=================================~n").
+    format("==================================================================~n").
 
 % --- Mostrar cartas do player ---
 mostrar_cartas_player :-
@@ -283,4 +323,50 @@ exibir_cartas_jogador :-
     forall(cartas_jogador(Jogador, Cartas), (
         format('~w possui as cartas: ~w~n', [Jogador, Cartas])
     )).
+
+
+
+% ---------------------------------------
+% Caso o palpite esteja errado, verifica qual jogador possui a carta do
+% palpite
+verifica_cartas_com_outros(S, A, C, Encontradas) :-
+    findall(Jogador, (jogador(Jogador), Jogador \= player), OutrosJogadores),
+    findall(Carta, (
+        member(J, OutrosJogadores),
+        cartas_jogador(J, Cartas),
+        (member(S, Cartas); member(A, Cartas); member(C, Cartas)),
+        (
+            member(S, Cartas) -> Carta = S ;
+            member(A, Cartas) -> Carta = A ;
+            member(C, Cartas) -> Carta = C
+        )
+    ), Lista),
+    list_to_set(Lista, Encontradas),
+    mostrar_dono_cartas(Encontradas).
+
+% ---------------------------------------
+% Exibe o dono da carta
+mostrar_dono_cartas([]).
+mostrar_dono_cartas([Carta|Resto]) :-
+    jogador(J),
+    J \= player,
+    cartas_jogador(J, Cartas),
+    member(Carta, Cartas),
+    format("A carta ~w está com o jogador: ~w~n", [Carta, J]),
+    mostrar_dono_cartas(Resto).
+
+
+% ---------------------------------------
+% Vai registrar as cartas encontradas com os outro jogaadores
+
+registrar_cartas_encontradas([], _, _, _) :-
+    writeln("Nenhuma das cartas foi revelada. Elas podem fazer parte do crime!").
+registrar_cartas_encontradas(Cartas, S, A, C) :-
+    historico_palpites(Hist),
+    (member(S, Cartas) -> S1 = S ; S1 = '-'),
+    (member(A, Cartas) -> A1 = A ; A1 = '-'),
+    (member(C, Cartas) -> C1 = C ; C1 = '-'),
+    append(Hist, [(S1, A1, C1)], NovoHist),
+    retractall(historico_palpites(_)),
+    assertz(historico_palpites(NovoHist)).
 
